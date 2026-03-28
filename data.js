@@ -61,6 +61,23 @@ const difficultyOrder = ['ez', 'hd', 'in', 'at', 'legacy', 'sp'];
 // 存储每首歌曲的曲绘加载状态
 const illustrationState = {};
 
+// ==================== 评论系统配置 ====================
+const COMMENT_API_URL = 'https://txnet-phiconstable-cmt.teinxiction.workers.dev/api/comments';
+
+// ==================== Markdown 解析 ====================
+function parseMarkdown(text) {
+    if (!text) return '';
+    return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        .replace(/`(.*?)`/g, '<code>$1</code>')
+        .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" style="color: #667eea;">$1</a>')
+        .replace(/\n/g, '<br>');
+}
+
 // ==================== 构建章节筛选器 ====================
 function buildChapterFilter() {
     const container = document.getElementById('chapterFilter');
@@ -137,6 +154,21 @@ function buildDifficultyFilter() {
 function getSongDetails(songId) {
     const chartKey = getChartKey(songId);
     return chartData[chartKey] || null;
+}
+
+// ==================== 获取歌曲可用难度 ====================
+function getAvailableDifficulties(songDetails) {
+    const available = [];
+    difficultyOrder.forEach(diffKey => {
+        if (songDetails[diffKey]) {
+            available.push({
+                key: diffKey.toUpperCase(),
+                name: difficultyNames[diffKey],
+                level: songDetails[diffKey].level || '?'
+            });
+        }
+    });
+    return available;
 }
 
 // ==================== 搜索过滤 ====================
@@ -240,7 +272,6 @@ async function reloadIllustration(imgElement, songId, chartKey, btnElement) {
             btnElement.disabled = false;
             btnElement.classList.remove('reload-btn');
         }
-        // 移除失败提示
         const parent = imgElement.parentElement;
         const tipSpan = parent.querySelector('.ill-fail-tip');
         if (tipSpan) tipSpan.remove();
@@ -271,6 +302,238 @@ async function reloadIllustration(imgElement, songId, chartKey, btnElement) {
         btnElement.classList.add('reload-btn');
     }
     return false;
+}
+
+// ==================== 渲染评论 ====================
+function renderComment(comment, isReply = false) {
+    const date = new Date(comment.created_at).toLocaleString();
+    const replyCount = comment.replies ? comment.replies.length : 0;
+    
+    return `
+        <div class="comment-item" data-comment-id="${comment.id}" style="background: rgba(255,255,255,0.05); border-radius: 10px; padding: 15px; margin-bottom: 15px; ${isReply ? 'margin-left: 40px; border-left: 3px solid #667eea;' : ''}">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 10px; flex-wrap: wrap;">
+                <div>
+                    <strong style="color: #667eea;">${escapeHtml(comment.username)}</strong>
+                    ${comment.difficulty ? `<span style="background: rgba(102,126,234,0.3); padding: 2px 8px; border-radius: 12px; font-size: 12px; margin-left: 8px;">${comment.difficulty.toUpperCase()}</span>` : ''}
+                    ${isReply ? '<span style="background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 12px; font-size: 12px; margin-left: 8px;">回复</span>' : ''}
+                </div>
+                <div style="display: flex; gap: 12px; align-items: center;">
+                    <span style="color: rgba(255,255,255,0.5); font-size: 12px;">${date}</span>
+                    <button class="delete-comment-btn" data-id="${comment.id}" style="background: none; border: none; color: #ff6b6b; cursor: pointer; font-size: 14px; padding: 4px 8px;" title="删除（只能删除自己的评论）">🗑️</button>
+                </div>
+            </div>
+            <div style="color: white; line-height: 1.6; margin-bottom: 12px;">${parseMarkdown(comment.content)}</div>
+            <div>
+                <button class="reply-to-btn" data-id="${comment.id}" data-username="${escapeHtml(comment.username)}" style="background: none; border: none; color: #667eea; cursor: pointer; font-size: 13px; padding: 4px 8px;">
+                    💬 回复 ${replyCount > 0 ? `(${replyCount})` : ''}
+                </button>
+            </div>
+            ${comment.replies && comment.replies.length > 0 ? 
+                `<div class="replies-container" style="margin-top: 15px;">
+                    ${comment.replies.map(reply => renderComment(reply, true)).join('')}
+                </div>` : ''
+            }
+        </div>
+    `;
+}
+
+// ==================== 打开评论系统 ====================
+async function openCommentSystem(songId, songName, difficulties) {
+    // 创建模态框
+    const modal = document.createElement('div');
+    modal.id = 'commentModal';
+    modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.95);
+        backdrop-filter: blur(10px);
+        z-index: 10001;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    `;
+    
+    modal.innerHTML = `
+        <div style="background: linear-gradient(135deg, #1a1a2e, #16213e); border-radius: 20px; width: 90%; max-width: 900px; max-height: 85vh; overflow: hidden; display: flex; flex-direction: column;">
+            <div style="padding: 20px; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; align-items: center;">
+                <h2 style="margin: 0; font-size: 20px; color: white;">💬 评论 · ${escapeHtml(songName)}</h2>
+                <button id="closeModalBtn" style="background: none; border: none; color: white; font-size: 24px; cursor: pointer;">✕</button>
+            </div>
+            
+            <div style="padding: 20px; overflow-y: auto; flex: 1;">
+                <!-- 发表评论表单 -->
+                <div style="background: rgba(255,255,255,0.05); border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+                    <div style="margin-bottom: 15px;">
+                        <input type="text" id="commentUsername" placeholder="你的名字" maxlength="50" style="width: 100%; padding: 12px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: white;">
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <select id="commentDifficulty" style="width: 100%; padding: 12px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: white;">
+                            <option value="">选择难度（可选）</option>
+                            ${difficulties.map(d => `<option value="${d.key}">${d.name} (Lv.${d.level})</option>`).join('')}
+                        </select>
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <div id="replyIndicator" style="display: none; background: rgba(102,126,234,0.2); padding: 8px 12px; border-radius: 8px; margin-bottom: 10px; font-size: 13px;">
+                            正在回复: <span id="replyToUser"></span>
+                            <button id="cancelReplyBtn" style="margin-left: 10px; background: none; border: none; color: #ff6b6b; cursor: pointer;">取消</button>
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                        <textarea id="commentContent" placeholder="支持 Markdown: **粗体** *斜体* \`代码\` [链接](url)" maxlength="1000" style="width: 100%; min-height: 120px; padding: 12px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: white; resize: vertical;"></textarea>
+                        <div style="background: rgba(255,255,255,0.05); border-radius: 8px; padding: 12px; overflow-y: auto;">
+                            <div style="color: rgba(255,255,255,0.5); font-size: 12px; margin-bottom: 8px;">预览</div>
+                            <div id="previewContent" style="color: white; font-size: 14px; line-height: 1.6;"></div>
+                        </div>
+                    </div>
+                    <button id="submitCommentBtn" style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; padding: 12px 30px; border-radius: 8px; cursor: pointer;">发送评论</button>
+                </div>
+                
+                <!-- 评论列表 -->
+                <div id="commentsList">
+                    <div style="text-align: center; padding: 40px;">加载中...</div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // 状态变量
+    let replyToId = null;
+    let replyToUser = null;
+    
+    // 关闭模态框
+    document.getElementById('closeModalBtn').onclick = () => modal.remove();
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+    
+    // 实时预览
+    const contentTextarea = document.getElementById('commentContent');
+    const previewDiv = document.getElementById('previewContent');
+    contentTextarea.oninput = () => {
+        previewDiv.innerHTML = parseMarkdown(contentTextarea.value);
+    };
+    
+    // 取消回复
+    const cancelReplyBtn = document.getElementById('cancelReplyBtn');
+    const replyIndicator = document.getElementById('replyIndicator');
+    cancelReplyBtn.onclick = () => {
+        replyToId = null;
+        replyToUser = null;
+        replyIndicator.style.display = 'none';
+        contentTextarea.placeholder = '支持 Markdown: **粗体** *斜体* `代码` [链接](url)';
+    };
+    
+    // 加载评论
+    async function loadComments() {
+        const commentsList = document.getElementById('commentsList');
+        try {
+            const response = await fetch(`${COMMENT_API_URL}/by-song?song_id=${encodeURIComponent(songId)}`);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const comments = await response.json();
+            
+            if (comments.length === 0) {
+                commentsList.innerHTML = '<div style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">✨ 暂无评论，来做第一个评论的人吧！</div>';
+                return;
+            }
+            
+            commentsList.innerHTML = comments.map(comment => renderComment(comment)).join('');
+            
+            // 绑定回复按钮
+            document.querySelectorAll('.reply-to-btn').forEach(btn => {
+                btn.onclick = () => {
+                    replyToId = btn.dataset.id;
+                    replyToUser = btn.dataset.username;
+                    replyIndicator.style.display = 'block';
+                    document.getElementById('replyToUser').textContent = replyToUser;
+                    contentTextarea.placeholder = `回复 @${replyToUser}...`;
+                    contentTextarea.focus();
+                };
+            });
+            
+            // 绑定删除按钮
+            document.querySelectorAll('.delete-comment-btn').forEach(btn => {
+                btn.onclick = async (e) => {
+                    e.stopPropagation();
+                    const id = btn.dataset.id;
+                    if (confirm('确定要删除这条评论吗？\n注意：只能删除你自己发布的评论，删除后无法恢复。')) {
+                        try {
+                            const response = await fetch(`${COMMENT_API_URL}/${id}`, {
+                                method: 'DELETE'
+                            });
+                            if (response.ok) {
+                                loadComments();
+                            } else {
+                                const error = await response.json();
+                                alert('删除失败: ' + (error.error || '未知错误'));
+                            }
+                        } catch (error) {
+                            alert('删除失败，请重试');
+                        }
+                    }
+                };
+            });
+            
+        } catch (error) {
+            commentsList.innerHTML = `<div style="text-align: center; padding: 40px; color: #ff6b6b;">加载失败: ${error.message}</div>`;
+        }
+    }
+    
+    // 提交评论/回复
+    document.getElementById('submitCommentBtn').onclick = async () => {
+        const username = document.getElementById('commentUsername').value.trim();
+        const content = document.getElementById('commentContent').value.trim();
+        const difficulty = document.getElementById('commentDifficulty').value;
+        
+        if (!username || !content) {
+            alert('请填写用户名和评论内容');
+            return;
+        }
+        
+        const submitBtn = document.getElementById('submitCommentBtn');
+        submitBtn.textContent = '发送中...';
+        submitBtn.disabled = true;
+        
+        try {
+            const response = await fetch(COMMENT_API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    username,
+                    content,
+                    difficulty: difficulty || null,
+                    song_id: songId,
+                    parent_id: replyToId
+                })
+            });
+            
+            if (response.ok) {
+                // 清空表单
+                document.getElementById('commentContent').value = '';
+                document.getElementById('previewContent').innerHTML = '';
+                replyToId = null;
+                replyToUser = null;
+                replyIndicator.style.display = 'none';
+                contentTextarea.placeholder = '支持 Markdown: **粗体** *斜体* `代码` [链接](url)';
+                // 重新加载评论
+                loadComments();
+            } else {
+                const error = await response.json();
+                alert('发送失败: ' + (error.error || '未知错误'));
+            }
+        } catch (error) {
+            alert('网络错误，请重试');
+        } finally {
+            submitBtn.textContent = '发送评论';
+            submitBtn.disabled = false;
+        }
+    };
+    
+    // 初始加载评论
+    loadComments();
 }
 
 // ==================== 渲染歌曲列表 ====================
@@ -316,12 +579,12 @@ function renderSongList() {
                 
                 tableRows += `
                     <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
-                        <td style="padding: 8px 6px; font-weight: 500;">${difficultyNames[diffKey]}</td>
-                        <td style="padding: 8px 6px;">${level}</td>
-                        <td style="padding: 8px 6px; font-size: 12px;">${escapeHtml(charter)}</td>
-                        <td style="padding: 8px 6px;">${notes}</td>
-                        <td style="padding: 8px 6px; font-size: 11px; color: #a0c0ff;">T:${tap} H:${hold} D:${drag} F:${flick}</td>
-                      </tr>
+                        <td style="padding: 8px 6px; font-weight: 500;">${difficultyNames[diffKey]}<\/td>
+                        <td style="padding: 8px 6px;">${level}<\/td>
+                        <td style="padding: 8px 6px; font-size: 12px;">${escapeHtml(charter)}<\/td>
+                        <td style="padding: 8px 6px;">${notes}<\/td>
+                        <td style="padding: 8px 6px; font-size: 11px; color: #a0c0ff;">T:${tap} H:${hold} D:${drag} F:${flick}<\/td>
+                    <\/tr>
                 `;
             }
         });
@@ -335,6 +598,7 @@ function renderSongList() {
         });
         
         const songIdSafe = song.id.replace(/\./g, '_');
+        const availableDifficulties = getAvailableDifficulties(songDetails);
         
         card.innerHTML = `
             <div style="display: flex; gap: 16px; flex-wrap: wrap;">
@@ -355,20 +619,27 @@ function renderSongList() {
                                     <th style="padding: 8px 6px; text-align: left;">谱师</th>
                                     <th style="padding: 8px 6px; text-align: left;">总Note</th>
                                     <th style="padding: 8px 6px; text-align: left;">详情</th>
-                                  </tr>
+                                <\/tr>
                             </thead>
                             <tbody>
-                                ${tableRows || '<tr><td colspan="5" style="padding: 12px; text-align: center;">无可用难度</td></tr>'}
+                                ${tableRows || '<tr><td colspan="5" style="padding: 12px; text-align: center;">无可用难度<\/tr>'}
                             </tbody>
-                          </table>
+                        <\/table>
                     </div>
                     <div style="margin-top: 14px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
                         <select id="diffSelect_${songIdSafe}" style="padding: 6px 12px; border-radius: 8px; background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3); font-size: 13px; cursor: pointer;">
                             ${diffOptions}
                         </select>
-                        <button class="download-chart-btn" data-track-id="${trackId}" data-select-id="diffSelect_${songIdSafe}" style="padding: 6px 14px; background: #27ae60; border: none; border-radius: 8px; color: white; cursor: pointer; font-size: 13px; transition: all 0.2s;">下载谱面</button>
-                        <button class="download-audio-btn" data-track-id="${trackId}" style="padding: 6px 14px; background: #3498db; border: none; border-radius: 8px; color: white; cursor: pointer; font-size: 13px; transition: all 0.2s;">下载音频</button>
-                        <button class="download-illust-btn" data-song-id="${song.id}" data-chart-key="${chartKey}" data-img-id="img_${songIdSafe}" style="padding: 6px 14px; background: #f39c12; border: none; border-radius: 8px; color: white; cursor: pointer; font-size: 13px; transition: all 0.2s;">下载曲绘</button>
+                        <button class="download-chart-btn" data-track-id="${trackId}" data-select-id="diffSelect_${songIdSafe}" style="padding: 6px 14px; background: #27ae60; border: none; border-radius: 8px; color: white; cursor: pointer; font-size: 13px;">下载谱面</button>
+                        <button class="download-audio-btn" data-track-id="${trackId}" style="padding: 6px 14px; background: #3498db; border: none; border-radius: 8px; color: white; cursor: pointer; font-size: 13px;">下载音频</button>
+                        <button class="download-illust-btn" data-song-id="${song.id}" data-chart-key="${chartKey}" data-img-id="img_${songIdSafe}" style="padding: 6px 14px; background: #f39c12; border: none; border-radius: 8px; color: white; cursor: pointer; font-size: 13px;">下载曲绘</button>
+                        <button class="comment-btn" 
+                                data-song-id="${song.id}" 
+                                data-song-name="${escapeHtml(songDetails.name)}"
+                                data-difficulties='${JSON.stringify(availableDifficulties)}'
+                                style="padding: 6px 14px; background: #9b59b6; border: none; border-radius: 8px; color: white; cursor: pointer; font-size: 13px;">
+                            💬 评论
+                        </button>
                     </div>
                 </div>
             </div>
@@ -412,6 +683,7 @@ function renderSongList() {
         }
     });
     
+    // 绑定下载谱面按钮
     document.querySelectorAll('.download-chart-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -424,6 +696,7 @@ function renderSongList() {
         });
     });
     
+    // 绑定下载音频按钮
     document.querySelectorAll('.download-audio-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -432,6 +705,7 @@ function renderSongList() {
         });
     });
     
+    // 绑定下载曲绘按钮
     document.querySelectorAll('.download-illust-btn').forEach(btn => {
         btn.addEventListener('click', async (e) => {
             e.stopPropagation();
@@ -447,6 +721,17 @@ function renderSongList() {
                 const url = `https://phidata.tx4.de5.net/Tracks/${trackId}/Illustration.jpg`;
                 window.open(url, '_blank');
             }
+        });
+    });
+    
+    // 绑定评论按钮
+    document.querySelectorAll('.comment-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const songId = btn.dataset.songId;
+            const songName = btn.dataset.songName;
+            const difficulties = JSON.parse(btn.dataset.difficulties);
+            openCommentSystem(songId, songName, difficulties);
         });
     });
 }
