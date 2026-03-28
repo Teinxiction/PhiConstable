@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phigros定数表和查分 Phigros Constable and Record Query| TXNet / Teinxiction</title>
+    <style>
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --secondary-gradient: linear-gradient(135deg, #1a73e8, #0d62d9);
+            --danger-color: #e74c3c;
+            --success-color: #27ae60;
+            --warning-color: #f39c12;
+            --info-color: #3498db;
+            --light-bg: rgba(255, 255, 255, 0.1);
+            --dark-bg: rgba(0, 0, 0, 0.7);
+            --border-color: rgba(255, 255, 255, 0.2);
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--primary-gradient);
+            min-height: 100vh;
+            color: #ffffff;
+            position: relative;
+            overflow-x: hidden;
+            text-align: center;
+            margin: 0;
+            padding: 40px 20px;
+        }
+        button {
+            padding: 12px 28px;
+            font-size: 16px;
+            font-weight: 600;
+            font-family: inherit;
+            background: var(--light-bg);
+            color: white;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin: 10px;
+        }
+        button:hover {
+            background: var(--secondary-gradient);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+            border-color: transparent;
+        }
+        button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h1 {
+            margin-bottom: 30px;
+            font-size: 2rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        input {
+    /* 尺寸和内边距 */
+    padding: 12px 16px;
+    font-size: 14px;
+    font-family: inherit;
+    
+    /* 背景和边框 */
+    background: var(--light-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    
+    /* 文字颜色 */
+    color: white;
+    
+    /* 过渡动画 */
+    transition: all 0.3s ease;
+    
+    /* 轮廓 */
+    outline: none;
+    
+    /* 宽度 */
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* 聚焦效果 */
+input:focus {
+    border-color: rgba(255, 255, 255, 0.5);
+    background: rgba(255, 255, 255, 0.15);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.3);
+    transform: translateY(-1px);
+}
+
+/* 悬停效果 */
+input:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.4);
+}
+.best-header, .best-item {
+    display: grid;
+    grid-template-columns: 40px 2fr 60px 60px 100px 80px 80px;
+    gap: 8px;
+    padding: 8px;
+}
+/* 占位符样式 */
+input::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 13px;
+}
+
+/* 禁用状态 */
+input:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+    </style>
+</head>
+<body>
+    <noscript>
+        <div style="background:red;color:white;padding:10px;text-align:center">
+            JavaScript被禁用，请启用JavaScript<br><small>JavaScript is disabled, please enable JavaScript</small>
+        </div>
+    </noscript>
+    
+    <h1>PhiConstable QueuryRecord made by Teinxiction</h1>
+    <button onclick="backtohome()">点击回到主页<br><small>Back to Home</small></button><br>
+    输入SessionToken/Input SessionToken<input id="token">
+    <button onclick="Query()">查分/Query</button>
+    <div id="queryResult"></div>
+    <script src="query.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+</body>
+</html>

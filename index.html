@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phigros定数表和查分 Phigros Constable and Record Query| TXNet / Teinxiction</title>
+    <style>
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --secondary-gradient: linear-gradient(135deg, #1a73e8, #0d62d9);
+            --danger-color: #e74c3c;
+            --success-color: #27ae60;
+            --warning-color: #f39c12;
+            --info-color: #3498db;
+            --light-bg: rgba(255, 255, 255, 0.1);
+            --dark-bg: rgba(0, 0, 0, 0.7);
+            --border-color: rgba(255, 255, 255, 0.2);
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--primary-gradient);
+            min-height: 100vh;
+            color: #ffffff;
+            position: relative;
+            overflow-x: hidden;
+            text-align: center;
+            margin: 0;
+            padding: 40px 20px;
+        }
+        button {
+            padding: 12px 28px;
+            font-size: 16px;
+            font-weight: 600;
+            font-family: inherit;
+            background: var(--light-bg);
+            color: white;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin: 10px;
+        }
+        button:hover {
+            background: var(--secondary-gradient);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+            border-color: transparent;
+        }
+        button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h1 {
+            margin-bottom: 30px;
+            font-size: 2rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+    </style>
+</head>
+<body>
+    <noscript>
+        <div style="background:red;color:white;padding:10px;text-align:center">
+            JavaScript被禁用，请启用JavaScript<br><small>JavaScript is disabled, please enable JavaScript</small>
+        </div>
+    </noscript>
+    
+    <h1>PhiConstable Made by Teinxiction</h1>
+    <button onclick="ViewConstable()">点击查看定数表<br><small>Click to view Constable</small></button>
+    <button onclick="ViewQuery()">点击查分<br><small>Click to query record</small></button>
+    
+    <script src="data.js"></script>
+    <script src="query.js"></script>
+</body>
+</html>
