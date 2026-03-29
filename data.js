@@ -28,7 +28,7 @@ function getTrackId(songId) {
 // 获取曲绘URL（主备两个数据源）
 function getIllustrationUrls(songId, chartKey) {
     const trackId = getTrackId(songId);
-    const primaryUrl = `https://phidata.tx4.de5.net/Tracks/${trackId}/Illustration.jpg`;
+    const primaryUrl = `https://phidata.tx4.de5.net/Tracks/${trackId}/Illustration.png`;
     const backupUrl = `https://raw.githubusercontent.com/Catrong/phi-plugin-ill/refs/heads/main/ill/${chartKey}.png`;
     return { primary: primaryUrl, backup: backupUrl };
 }
@@ -718,7 +718,7 @@ function renderSongList() {
                 await reloadIllustration(imgElement, songId, chartKey, btn);
             } else {
                 const trackId = getTrackId(songId);
-                const url = `https://phidata.tx4.de5.net/Tracks/${trackId}/Illustration.jpg`;
+                const url = `https://phidata.tx4.de5.net/Tracks/${trackId}/Illustration.png`;
                 window.open(url, '_blank');
             }
         });
